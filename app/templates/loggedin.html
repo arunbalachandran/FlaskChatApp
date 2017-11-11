@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <title>WebChatApp</title>
+    <script src="{{ url_for('static', filename='jquery-3.1.1.min.js')}}"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='bootstrap.min.css')}}">
+    <!-- Optional theme -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='bootstrap-theme.min.css')}}">
+    <!-- Latest compiled and minified JavaScript -->
+    <script src="{{ url_for('static', filename='bootstrap.min.js')}}"></script>
+    <script type="text/javascript" src="{{ url_for('static', filename='socket.io.min.js')}}"></script>
+    <script>
+      var csrftoken = $('meta[name=csrf-token]').attr('content')
+      // ajax non refresh boilerplate
+      $.ajaxSetup({
+          beforeSend: function(xhr, settings) {
+              if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type)) {
+                  xhr.setRequestHeader("X-CSRFToken", csrftoken)
+              }
+          }
+      })
+
+      var socket;
+      var socket_id; // this has to be different for each page
+      var current_room; // again different?
+      $(document).ready(function() {
+          $("#connectForm").submit(function(event) {
+              event.preventDefault();
+          });
+          $("#userNotOnline").hide();
+
+          socket = io.connect('http://' + document.domain + ':' + location.port + '/loggedin');
+          // on connecting send the socket id to server
+          socket.on('connect', function() {
+              console.log("Successfully connected socket with id " + socket.id);
+              socket_id = socket.id;
+              var name = "{{name}}";
+              $.ajax({
+                  url: "/loggedin",
+                  data: JSON.stringify({sock_id : socket.id, username: name}),
+                  type: 'POST',
+                  contentType: 'application/json;charset=UTF-8',
+                  success: function(result) {
+                      var res = $.parseJSON(result);
+                      console.log("Sent socket id behind");
+                      socket.emit('joined', {"user": res["success"], "room": res["room"]});
+                  },
+                  error: function(error) {
+                      console.log(error);
+                  }
+              });
+          });
+
+          socket.on('status', function(data) {
+              console.log("Got status " + data.mesg);
+              $('#chat').val($('#chat').val() + '<' + data.mesg + '>\n');
+              // $('#chat').scrollTop ($('#chat')[0].scrollHeight);
+          });
+
+          // socket.on('message', function(data) {
+          //     console.log("Got message from server for room " + data.msg);
+          //     $('#chat').val($('#chat').val() + data.msg + '\n');
+          //     $('#chat').scrollTop($('#chat')[0].scrollHeight);
+          // });
+
+          $('#text').keypress(function(e) {
+              // if and only if the other user is
+              var code = e.keyCode || e.which;
+              if (code == 13) {
+                  text = $('#text').val();
+                  $('#text').val('');
+                  var username = "{{name}}";
+                  socket.emit('text', {"sock_user": username, "text": text});
+              }
+          });
+
+          $('#btnConnect').click(function() {
+              var formdata = $('form').serializeArray();
+              $.each(formdata, function(i, field){
+                  var y = (field.name + ":" + field.value + " ");
+                  console.log(y);
+              });
+
+              console.log("The user id is now " + socket_id);
+              var username = "{{name}}";
+              formdata.push({"username": username});
+              $.ajax({
+                  url: "/checkcred",
+                  data: JSON.stringify(formdata),
+                  type: 'POST',
+                  contentType: 'application/json;charset=UTF-8',
+                  success: function(result) {
+                      var res = $.parseJSON(result);
+                      console.log("joining my own room " + res["success"]);
+                      // socket.emit('joined', {"user": res["success"], "room": res["room"]});
+                  },
+                  error: function(error) {
+                      $('#userNotOnline').show().fadeOut(4000);
+                      console.log(error);
+                  }
+              });
+          });
+      });
+
+      function leave_room() {
+          var user = "{{name}}";
+          socket.emit('left', {'username': user, 'sock_id': socket_id}, function() {
+              socket.disconnect();
+              // go back to the login page
+              window.location.href = "{{ url_for('.showoptions') }}";
+          });
+      }
+    </script>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header clearfix">
+        <nav>
+          <ul class="nav nav-pills pull-right">
+            <li role="presentation"><a href="logout" onclick="leave_room()">Logout</a></li>
+          </ul>
+        </nav>
+        <h3 class="text-muted">WebChatApp</h3>
+      </div>
+
+      <div class="jumbotron">
+        <h1>Welcome to chat app, {{name}}!</h1>
+      </div>
+
+      <div class="container">
+        <form id="connectForm" method="POST" class="form-signin">
+          {{ form.hidden_tag() }}
+          {{ form.connectto.label }} {{ form.connectto(class_="form-control") }} {% for error in form.connectto.errors %}{{ error }}{% endfor %}<br>
+          {{ form.submit(id="btnConnect", class_="btn btn-primary") }}
+          <h3 id="userNotOnline">The user you are trying to contact isn't online or doesn't exist. Please try again!</h3>
+        </form>
+      </div>
+    </div>
+
+    <div class="container">
+      <textarea id="chat" cols="80" rows="20"></textarea><br><br>
+      <input id="text" size="80" placeholder="Enter your message here"><br><br>
+      <a href="logout" onclick="leave_room();">Leave this room</a>
+    </div>
+  </body>
+</html>

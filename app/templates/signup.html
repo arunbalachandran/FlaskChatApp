@@ -1,0 +1,47 @@
+<html>
+  <head>
+    <meta charset="utf-8">
+    <script src="{{ url_for('static', filename='jquery-3.1.1.min.js')}}"></script>
+    <!-- <title>WebChatApp</title> -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='bootstrap.min.css')}}">
+    <!-- Optional theme -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='bootstrap-theme.min.css')}}">
+    <!-- Latest compiled and minified JavaScript -->
+    <script src="{{ url_for('static', filename='bootstrap.min.js')}}"></script>
+    <script>
+      $(document).ready(function() {
+          $("#signUpForm").submit(function(event) {
+              event.preventDefault();
+          });
+          $("#invalidSignUp").hide();
+          $('#btnSignUp').click(function() {
+              $.ajax({
+                  url: '/signup',
+                  data: $('form').serialize(),
+                  type: 'POST',
+                  success: function(result) {
+                      console.log("Got correct login credentials");
+                      window.location.href = "/";
+                  },
+                  error: function(error) {
+                      $('#invalidSignUp').show().fadeOut(4000);
+                      console.log(error);
+                  }
+              });
+        });
+      });
+    </script>
+  </head>
+  <body>
+    <div class="container">
+      <form id="signUpForm" method="POST" class="form-signin">
+        <h2 class="form-signin-heading">Sign Up</h2>
+        {{ form.hidden_tag() }}
+        {{ form.username.label }}: {{ form.username(class_="form-control") }} {% for error in form.username.errors %}{{ error }}{% endfor %}<br>
+        {{ form.password.label }}: {{ form.password(class_="form-control") }} {% for error in form.password.errors %}{{ error }}{% endfor %}<br>
+        {{ form.submit(class_="btn btn-lg btn-primary btn-bloc", id="btnSignUp") }}
+        <h3 id="invalidSignUp">This username is already taken, please try again.</h3>
+      </form>
+    </div>
+  </body>
+</html>

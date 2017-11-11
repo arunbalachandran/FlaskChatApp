@@ -1,0 +1,58 @@
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="{{ url_for('static', filename='jquery-3.1.1.min.js')}}"></script>
+    <!-- <title>WebChatApp</title> -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='bootstrap.min.css')}}">
+    <!-- Optional theme -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='bootstrap-theme.min.css')}}">
+    <!-- Latest compiled and minified JavaScript -->
+    <script src="{{ url_for('static', filename='bootstrap.min.js')}}"></script>
+    <script type="text/javascript" src="{{ url_for('static', filename='socket.io.min.js')}}"></script>
+    <script>
+      var socket;
+      $(document).ready(function() {
+          $("#signinForm").submit(function(event) {
+              event.preventDefault();
+          });
+          $("#invalidLogin").hide();
+          $('#btnSignIn').click(function() {
+              $.ajax({
+                  url: '/login',
+                  data: $('form').serialize(),
+                  type: 'POST',
+                  success: function(result) {
+                      console.log("Got correct login credentials");
+                      // uses the route and not the function name
+                      var res = $.parseJSON(result);
+                      var user = res["success"];
+                      console.log("Socket will be created with for user " + user);
+                      // result contains the username of the correctly logged in user
+                      var sock_user = user;
+                      // send a get request to the loggedin page to sign in the user
+                      window.location.href = "/loggedin?sock_user="+sock_user;
+
+                  },
+                  error: function(error) {
+                      $('#invalidlogin').show().fadeOut(4000);
+                      console.log(error);
+                  }
+              });
+        });
+      });
+    </script>
+  </head>
+  <body>
+    <div class="container">
+      <form id="signinForm" method="POST" class="form-signin">
+        <h2 class="form-signin-heading">Login now</h2>
+        {{ form.hidden_tag() }}
+        {{ form.username.label }}: {{ form.username(class_="form-control") }} {% for error in form.username.errors %}{{ error }}{% endfor %}<br>
+        {{ form.password.label }} {{ form.password(class_="form-control") }} {% for error in form.password.errors %}{{ error }}{% endfor %}<br>
+        {{ form.submit(class_="btn btn-lg btn-primary btn-bloc", id="btnSignIn") }}
+        <h3 id=invalidLogin>The username password combination is not correct, please try again!</h3>
+      </form>
+    </div>
+  </body>
+</html>
